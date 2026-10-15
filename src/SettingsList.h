@@ -369,6 +369,11 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
                           {StrId::STR_STATE_OFF, StrId::STR_TOUCH_MODE_TAP, StrId::STR_TOUCH_MODE_SWIPE,
                            StrId::STR_TOUCH_MODE_INVERTED_TAP, StrId::STR_TOUCH_MODE_FULL_TAP},
                           "touchReaderControls", StrId::STR_CAT_CONTROLS));
+    // Panel-owned persistence helper: stored in JSON/web settings but hidden
+    // from the normal on-device settings menu.
+    add(SettingInfo::Value(StrId::STR_TOUCH_READER_CONTROLS, &InkMODSettings::touchReaderControlsRestore,
+                           {InkMODSettings::TOUCH_READER_ON, InkMODSettings::TOUCH_READER_FULL_TAP, 1},
+                           "touchReaderControlsRestore"));
 
     // --- Reader ---
     // Built-in font-family entry. Replaced per-call with a registry-aware
