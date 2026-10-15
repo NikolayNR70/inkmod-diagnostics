@@ -61,6 +61,21 @@ void drawInkMODBitmap(const GfxRenderer& renderer, const uint8_t* bitmap, const 
 constexpr bool TURN_OFF_SCREEN_AFTER_SLEEP_REFRESH = true;
 constexpr int sleepBuildInfoSideMargin = 20;
 
+void drawOverlaySleepMarker(const GfxRenderer& renderer, const int x, const int y) {
+  // MoonIcon is 48x48. Downsample to an 18x18 status marker so X4 Pro does
+  // not leave a mysterious blank hole where the live battery lane was removed.
+  constexpr int dst = 18;
+  for (int dy = 0; dy < dst; ++dy) {
+    const int sy = dy * MOONICON_HEIGHT / dst;
+    for (int dx = 0; dx < dst; ++dx) {
+      const int sx = dx * MOONICON_WIDTH / dst;
+      const int byteIndex = sy * ((MOONICON_WIDTH + 7) / 8) + sx / 8;
+      const bool white = ((MoonIcon[byteIndex] >> (7 - (sx & 7))) & 1) != 0;
+      if (!white) renderer.drawPixel(x + dx, y + dy, true);
+    }
+  }
+}
+
 void hideOverlayBatteryStrip(const GfxRenderer& renderer) {
   if (!SETTINGS.statusBarBattery) {
     return;
@@ -89,7 +104,15 @@ void hideOverlayBatteryStrip(const GfxRenderer& renderer) {
       (showBatteryPercentage ? batteryPercentSpacing + renderer.getTextWidth(SMALL_FONT_ID, "100%") : 0);
   const int clearHeight = std::max(renderer.getTextHeight(SMALL_FONT_ID), metrics.batteryHeight + 6);
 
-  renderer.fillRect(metrics.statusBarHorizontalMargin + orientedMarginLeft + 1, textY, clearWidth, clearHeight, false);
+  const int laneX = metrics.statusBarHorizontalMargin + orientedMarginLeft + 1;
+  renderer.fillRect(laneX, textY, clearWidth, clearHeight, false);
+
+  // X4 Pro has no physical sleep indicator in this layout. Mark the cleared
+  // lane explicitly instead of leaving a blank rectangle over the status bar.
+  if (BoardConfig::isX4Pro()) {
+    const int markerY = textY + std::max(0, (clearHeight - 18) / 2);
+    drawOverlaySleepMarker(renderer, laneX + 1, markerY);
+  }
 }
 
 // Context passed through PNGdec's decode() user-pointer to the per-scanline draw callback.
