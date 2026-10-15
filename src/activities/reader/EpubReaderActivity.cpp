@@ -1224,7 +1224,11 @@ void EpubReaderActivity::onEnter() {
     // Resume from a bookmark selected on the Home screen
     currentSpineIndex = APP_STATE.pendingBookmarkSpine;
     pendingSpineProgress = APP_STATE.pendingBookmarkProgress;
-    pendingBookmarkParagraphIndex = APP_STATE.pendingBookmarkParagraphIndex;
+    // FB2 virtual sections already store an exact page-relative progress.
+    // Re-resolving the synthetic paragraph anchor can land on the adjacent
+    // page, so keep paragraph anchoring for EPUB only.
+    pendingBookmarkParagraphIndex =
+        epub->isFb2Package() ? UINT16_MAX : APP_STATE.pendingBookmarkParagraphIndex;
     pendingPercentJump = true;
     cachedSpineIndex = currentSpineIndex;
 
@@ -2583,7 +2587,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
               RenderLock lock(*this);
               currentSpineIndex = bm.spineIndex;
               pendingSpineProgress = bm.progress;
-              pendingBookmarkParagraphIndex = bm.paragraphIndex;
+              pendingBookmarkParagraphIndex = epub->isFb2Package() ? UINT16_MAX : bm.paragraphIndex;
               pendingPercentJump = true;
               section.reset();
               armReadingPaceWarmup("bookmark_jump");
