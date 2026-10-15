@@ -406,6 +406,10 @@ class InkMODSettings {
   uint8_t sideButtonOrientationAware = 0;
   // X4 Pro touch/frontlight state. These fields are ignored on X3/X4.
   uint8_t touchReaderControls = TOUCH_READER_SWIPE;
+  // Last non-off reader touch mode. The X4 Pro quick-toggle uses this to
+  // restore Tap/Swipe/Inverted/Full Tap even after the control center is
+  // closed, reopened, or the device is rebooted while touch controls are off.
+  uint8_t touchReaderControlsRestore = TOUCH_READER_SWIPE;
   uint8_t frontlightBrightness = 60;
   uint8_t frontlightWarmth = 50;
   uint8_t frontlightOn = 0;
