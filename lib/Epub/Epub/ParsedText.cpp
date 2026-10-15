@@ -110,6 +110,40 @@ uint16_t measureWordWidth(const GfxRenderer& renderer, const int fontId, const s
   return renderer.getTextAdvanceX(fontId, sanitized.c_str(), style);
 }
 
+bool isRightHangingPunctuation(const uint32_t cp) {
+  switch (cp) {
+    case '.':
+    case ',':
+    case ';':
+    case ':':
+    case '!':
+    case '?':
+    case '-':
+    case 0x2010:  // hyphen
+    case 0x2011:  // non-breaking hyphen
+    case 0x2013:  // en dash
+    case 0x2014:  // em dash
+    case 0x2019:  // right single quote
+    case 0x201D:  // right double quote
+    case 0x00BB:  // »
+    case ')':
+    case ']':
+      return true;
+    default:
+      return false;
+  }
+}
+
+int trailingHangingWidth(const GfxRenderer& renderer, const int fontId, const std::string& word,
+                         const EpdFontFamily::Style style) {
+  if (word.empty()) return 0;
+  const uint32_t cp = lastCodepoint(word);
+  if (!isRightHangingPunctuation(cp)) return 0;
+  size_t start = word.size() - 1;
+  while (start > 0 && (static_cast<uint8_t>(word[start]) & 0xC0) == 0x80) --start;
+  return renderer.getTextAdvanceX(fontId, word.c_str() + start, style);
+}
+
 // Checks if a UTF-8 codepoint should be counted as part of a word for Focus Reading
 bool isWordCharacter(uint32_t cp) {
   // ASCII range (Catches 95%+ of characters immediately)
@@ -887,8 +921,17 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
           ? CssTextAlign::Right
           : blockStyle.alignment;
 
-  // For justified text, compute per-gap extra to distribute remaining space evenly
-  const int spareSpace = effectivePageWidth - lineWordWidthSum - totalNaturalGaps;
+  // FB2 hanging punctuation: when justified, align the final letter to the
+  // text margin and let a terminal comma/period/hyphen/quote hang just outside.
+  // EPUB keeps the previous layout. This is visual only; pagination remains
+  // stable because the line breaker still uses the full glyph width.
+  const int hangingRight =
+      preserveNaturalWordSpaces && effectiveAlignment == CssTextAlign::Justify && !lineWords.empty()
+          ? trailingHangingWidth(renderer, fontId, lineWords.back(), lineWordStyles.back())
+          : 0;
+
+  // For justified text, compute per-gap extra to distribute remaining space evenly.
+  const int spareSpace = effectivePageWidth - (lineWordWidthSum - hangingRight) - totalNaturalGaps;
   int justifyExtra = (effectiveAlignment == CssTextAlign::Justify && !isLastLine && actualGapCount >= 1)
                           ? spareSpace / static_cast<int>(actualGapCount)
                           : 0;
@@ -980,7 +1023,12 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
       }
     }
 
-    const int reorderedSpare = effectivePageWidth - reorderedWordWidthSum - reorderedNaturalGaps;
+    const int reorderedHangingRight =
+        preserveNaturalWordSpaces && effectiveAlignment == CssTextAlign::Justify && !reorderedWordsScratch.empty()
+            ? trailingHangingWidth(renderer, fontId, reorderedWordsScratch.back(), reorderedStylesScratch.back())
+            : 0;
+    const int reorderedSpare =
+        effectivePageWidth - (reorderedWordWidthSum - reorderedHangingRight) - reorderedNaturalGaps;
     int reorderedJustifyExtra =
         (effectiveAlignment == CssTextAlign::Justify && !isLastLine && reorderedGapCount >= 1)
             ? reorderedSpare / static_cast<int>(reorderedGapCount)
