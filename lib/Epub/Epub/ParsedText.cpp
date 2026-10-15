@@ -921,14 +921,13 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
           ? CssTextAlign::Right
           : blockStyle.alignment;
 
-  // FB2 hanging punctuation: when justified, align the final letter to the
-  // text margin and let a terminal comma/period/hyphen/quote hang just outside.
-  // EPUB keeps the previous layout. This is visual only; pagination remains
-  // stable because the line breaker still uses the full glyph width.
-  const int hangingRight =
-      preserveNaturalWordSpaces && effectiveAlignment == CssTextAlign::Justify && !lineWords.empty()
-          ? trailingHangingWidth(renderer, fontId, lineWords.back(), lineWordStyles.back())
-          : 0;
+  // Keep every rendered glyph inside the text viewport. Earlier FB2
+  // justification used optical "hanging punctuation" and subtracted the final
+  // comma/quote/hyphen from the measured line width. On the narrow X3/X4
+  // screen that visibly pushed punctuation and hyphenation marks into the
+  // right page margin. Preserve natural FB2 word spacing, but do not hang
+  // terminal glyphs outside the text box.
+  const int hangingRight = 0;
 
   // For justified text, compute per-gap extra to distribute remaining space evenly.
   const int spareSpace = effectivePageWidth - (lineWordWidthSum - hangingRight) - totalNaturalGaps;
@@ -1023,10 +1022,8 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
       }
     }
 
-    const int reorderedHangingRight =
-        preserveNaturalWordSpaces && effectiveAlignment == CssTextAlign::Justify && !reorderedWordsScratch.empty()
-            ? trailingHangingWidth(renderer, fontId, reorderedWordsScratch.back(), reorderedStylesScratch.back())
-            : 0;
+    // Same no-overhang rule for visually reordered (BiDi/RTL) lines.
+    const int reorderedHangingRight = 0;
     const int reorderedSpare =
         effectivePageWidth - (reorderedWordWidthSum - reorderedHangingRight) - reorderedNaturalGaps;
     int reorderedJustifyExtra =
