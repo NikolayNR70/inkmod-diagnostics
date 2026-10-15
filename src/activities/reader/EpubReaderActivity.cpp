@@ -1694,7 +1694,10 @@ void EpubReaderActivity::loop() {
       SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_ORIENTATION_CHANGE;
   const bool sideLongPressCreatesClipping =
       SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CREATE_CLIPPING;
-  if (sideLongPressChangesFont || sideLongPressChangesOrientation || sideLongPressCreatesClipping) {
+  const bool sideLongPressPreviousPage =
+      SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PREVIOUS_PAGE;
+  if (sideLongPressChangesFont || sideLongPressChangesOrientation || sideLongPressCreatesClipping ||
+      sideLongPressPreviousPage) {
     const bool topReleased = mappedInput.wasReleased(MappedInputManager::Button::Up);
     const bool bottomReleased = mappedInput.wasReleased(MappedInputManager::Button::Down);
     if (sideButtonLongPressHandled && (topReleased || bottomReleased)) {
@@ -1716,6 +1719,8 @@ void EpubReaderActivity::loop() {
         }
       } else if (sideLongPressCreatesClipping) {
         executeReaderQuickAction(InkMODSettings::LONG_MENU_CREATE_CLIPPING);
+      } else if (sideLongPressPreviousPage) {
+        if (section) pageTurn(false, "side-long");
       } else {
         applyOrientation(ReaderUtils::rotatedOrientation(SETTINGS.orientation, /*clockwise=*/false));
         requestUpdate();
@@ -1730,6 +1735,8 @@ void EpubReaderActivity::loop() {
         }
       } else if (sideLongPressCreatesClipping) {
         executeReaderQuickAction(InkMODSettings::LONG_MENU_CREATE_CLIPPING);
+      } else if (sideLongPressPreviousPage) {
+        if (section) pageTurn(false, "side-long");
       } else {
         applyOrientation(ReaderUtils::rotatedOrientation(SETTINGS.orientation, /*clockwise=*/true));
         requestUpdate();
