@@ -68,10 +68,16 @@ void FrontlightPanelActivity::onEnter() {
   lightOn = Frontlight.isOn();
   lightOnChanged = false;
 
-  // Seed the touch tile's restore mode from the live setting, so toggling off
-  // and back on within this session returns to the mode the user had.
+  // Seed the quick-toggle from persistent state. If touch is currently on,
+  // the live mode is authoritative and refreshes the saved restore value.
   if (SETTINGS.touchReaderControls != InkMODSettings::TOUCH_READER_OFF) {
     touchModeRestore = SETTINGS.touchReaderControls;
+    SETTINGS.touchReaderControlsRestore = touchModeRestore;
+  } else if (SETTINGS.touchReaderControlsRestore >= InkMODSettings::TOUCH_READER_ON &&
+             SETTINGS.touchReaderControlsRestore <= InkMODSettings::TOUCH_READER_FULL_TAP) {
+    touchModeRestore = SETTINGS.touchReaderControlsRestore;
+  } else {
+    touchModeRestore = InkMODSettings::TOUCH_READER_SWIPE;
   }
 
   resetUi();
@@ -173,8 +179,13 @@ void FrontlightPanelActivity::runTile(const int idx) {
       // Tap) so toggling back does not stomp the user's choice.
       if (SETTINGS.touchReaderControls != InkMODSettings::TOUCH_READER_OFF) {
         touchModeRestore = SETTINGS.touchReaderControls;
+        SETTINGS.touchReaderControlsRestore = touchModeRestore;
         SETTINGS.touchReaderControls = InkMODSettings::TOUCH_READER_OFF;
       } else {
+        if (SETTINGS.touchReaderControlsRestore >= InkMODSettings::TOUCH_READER_ON &&
+            SETTINGS.touchReaderControlsRestore <= InkMODSettings::TOUCH_READER_FULL_TAP) {
+          touchModeRestore = SETTINGS.touchReaderControlsRestore;
+        }
         SETTINGS.touchReaderControls = touchModeRestore;
       }
       SETTINGS.saveToFile();
