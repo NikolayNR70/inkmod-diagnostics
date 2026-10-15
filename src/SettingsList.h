@@ -430,14 +430,23 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
                                 InkMODSettings::NEXT_PREV, InkMODSettings::NEXT_NEXT}));
     add(SettingInfo::Enum(StrId::STR_ORIENTATION_AWARE, &InkMODSettings::sideButtonOrientationAware,
                           {StrId::STR_NO, StrId::STR_YES}, "sideButtonOrientationAware", StrId::STR_CAT_CONTROLS));
-    add(SettingInfo::Enum(StrId::STR_SIDE_BTN_LONG_PRESS, &InkMODSettings::sideButtonLongPress,
+    auto sideLongPressSetting =
+        SettingInfo::Enum(StrId::STR_SIDE_BTN_LONG_PRESS, &InkMODSettings::sideButtonLongPress,
                           {StrId::STR_IGNORE, StrId::STR_CHAPTER_SKIP_OPT, StrId::STR_PAGES_10,
                            StrId::STR_CHANGE_FONT_SIZE, StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION,
                            StrId::STR_CREATE_CLIPPING},
                           "sideButtonLongPress", StrId::STR_CAT_CONTROLS)
             .withEnumRawValues({InkMODSettings::SIDE_LONG_OFF, InkMODSettings::SIDE_LONG_CHAPTER_SKIP,
                                 InkMODSettings::SIDE_LONG_PAGE_SKIP_10, InkMODSettings::SIDE_LONG_FONT_SIZE,
-                                InkMODSettings::SIDE_LONG_ORIENTATION_CHANGE, InkMODSettings::SIDE_LONG_CREATE_CLIPPING}));
+                                InkMODSettings::SIDE_LONG_ORIENTATION_CHANGE, InkMODSettings::SIDE_LONG_CREATE_CLIPPING});
+    // X3 and X4 Pro have one physical page button on each side. "Previous Page"
+    // is intended for the NEXT_NEXT layout from the sketch: a short press on
+    // either side advances, while holding either side goes back one page.
+    if (gpio.deviceIsX3() || BoardConfig::isX4Pro()) {
+      sideLongPressSetting.enumValues.push_back(StrId::STR_PREVIOUS_PAGE);
+      sideLongPressSetting.enumRawValues.push_back(InkMODSettings::SIDE_LONG_PREVIOUS_PAGE);
+    }
+    add(std::move(sideLongPressSetting));
     add(SettingInfo::Enum(StrId::STR_ORIENTATION_AWARE, &InkMODSettings::frontButtonOrientationAware,
                           {StrId::STR_NO, StrId::STR_NAV_BUTTONS, StrId::STR_ALL_BUTTONS},
                           "frontButtonOrientationAware", StrId::STR_CAT_CONTROLS));
