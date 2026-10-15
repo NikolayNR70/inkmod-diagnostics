@@ -160,8 +160,10 @@ void EpubReaderPercentSelectionActivity::render(RenderLock&&) {
   const int knobX = barX + 2 + fillWidth - 2;
   renderer.fillRect(knobX, barY - 4, 4, barHeight + 8, true);
 
-  // Hint text for step sizes.
-  UITheme::drawCenteredText(renderer, screen, SMALL_FONT_ID, barY + 30, tr(STR_PERCENT_STEP_HINT), true);
+  // X4 Pro uses the two side keys: short press changes 1%, hold changes
+  // 10%. X3/X4 retain the directional-key hint.
+  const StrId stepHint = mappedInput.hasTouch() ? STR_SIDE_BUTTON_PERCENT_HINT : STR_PERCENT_STEP_HINT;
+  UITheme::drawCenteredText(renderer, screen, SMALL_FONT_ID, barY + 30, tr(stepHint), true);
 
   if (mappedInput.hasTouch()) {
     const int screenWidth = renderer.getScreenWidth();
