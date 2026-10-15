@@ -250,6 +250,15 @@ void XtcReaderActivity::loop() {
   const bool powerPageTurn = shortPowerTurn || longPowerTurn || timedLongPowerTurn;
   const bool frontNext = mappedInput.wasReleased(MappedInputManager::Button::Right) || powerPageTurn || touchNext;
 
+  if (SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PREVIOUS_PAGE &&
+      mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS && (sidePrev || sideNext)) {
+    if (currentPage > 0) {
+      --currentPage;
+      requestUpdate();
+    }
+    return;
+  }
+
   const bool frontLongPressAction = SETTINGS.longPressButtonBehavior == InkMODSettings::CHAPTER_SKIP ||
                                     SETTINGS.longPressButtonBehavior == InkMODSettings::FONT_SIZE_CHANGE;
   if (frontLongPressAction) {
