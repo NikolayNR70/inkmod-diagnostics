@@ -993,6 +993,14 @@ void WifiSelectionActivity::loop() {
   // Handle network list state
   if (state == WifiSelectionState::NETWORK_LIST) {
     bool touchActivate = false;
+    if (mappedInput.hasTouch() && networks.empty()) {
+      const Rect screen = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
+      if (touchBottomAction(mappedInput, screen)) {
+        mappedInput.suppressTouchContact();
+        startWifiScan();
+        return;
+      }
+    }
     if (mappedInput.hasTouch() && !networks.empty()) {
       auto& theme = UITheme::getInstance();
       const auto metrics = theme.getMetrics();
@@ -1126,11 +1134,23 @@ void WifiSelectionActivity::render(RenderLock&&) {
 
 void WifiSelectionActivity::renderNetworkList(const Rect* screen, const ThemeMetrics* metrics) const {
   if (networks.empty()) {
-    // No networks found or scan failed
+    // No networks found or scan failed. Touch devices (X4 Pro) have no OK
+    // button, so show an actual tappable Retry action instead of the inherited
+    // X3/X4 "Press OK" instruction.
     const auto height = renderer.getLineHeight(UI_10_FONT_ID);
     const auto top = screen->y + (screen->height - height) / 2;
     UITheme::drawCenteredText(renderer, *screen, UI_10_FONT_ID, top, tr(STR_NO_NETWORKS));
-    UITheme::drawCenteredText(renderer, *screen, SMALL_FONT_ID, top + height + 10, tr(STR_PRESS_OK_SCAN));
+    if (mappedInput.hasTouch()) {
+      constexpr int side = 36;
+      constexpr int buttonH = 48;
+      const int buttonY = screen->y + screen->height - buttonH - 18;
+      renderer.drawRect(screen->x + side, buttonY, screen->width - side * 2, buttonH);
+      const char* label = tr(STR_RETRY);
+      const int textW = renderer.getTextWidth(UI_10_FONT_ID, label);
+      renderer.drawText(UI_10_FONT_ID, screen->x + (screen->width - textW) / 2, buttonY + 10, label);
+    } else {
+      UITheme::drawCenteredText(renderer, *screen, SMALL_FONT_ID, top + height + 10, tr(STR_PRESS_OK_SCAN));
+    }
   } else {
     int contentTop =
         screen->y + metrics->topPadding + metrics->headerHeight + metrics->tabBarHeight + metrics->verticalSpacing;
