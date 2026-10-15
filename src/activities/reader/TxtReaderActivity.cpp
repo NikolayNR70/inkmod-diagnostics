@@ -167,7 +167,11 @@ void TxtReaderActivity::loop() {
     return;
   }
 
-  if (SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_ORIENTATION_CHANGE) {
+  const bool sideLongPressOrientation =
+      SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_ORIENTATION_CHANGE;
+  const bool sideLongPressPreviousPage =
+      SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PREVIOUS_PAGE;
+  if (sideLongPressOrientation || sideLongPressPreviousPage) {
     const bool topReleased = mappedInput.wasReleased(MappedInputManager::Button::Up);
     const bool bottomReleased = mappedInput.wasReleased(MappedInputManager::Button::Down);
     if (sideButtonLongPressHandled && (topReleased || bottomReleased)) {
@@ -183,6 +187,14 @@ void TxtReaderActivity::loop() {
 
     if (!sideButtonLongPressHandled && (topLongPressed || bottomLongPressed)) {
       sideButtonLongPressHandled = !(topReleased || bottomReleased);
+      if (sideLongPressPreviousPage) {
+        if (currentPage > 0) {
+          --currentPage;
+          requestUpdate();
+        }
+        return;
+      }
+
       SETTINGS.orientation = ReaderUtils::rotatedOrientation(SETTINGS.orientation, /*clockwise=*/bottomLongPressed);
       SETTINGS.saveToFile();
       {
