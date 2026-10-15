@@ -727,8 +727,29 @@ bool HttpDownloader::fetchUrl(const std::string& url, const DataCallback& onData
   // OPDS/text streaming must avoid esp_http_client_fetch_headers(): on the
   // ESP32-C3 it may allocate an internal decoded-data buffer after TLS has
   // already fragmented the heap. The perform/event path forwards body chunks
-  // directly to the SD sink and keeps peak contiguous-RAM demand much lower.
-  return runGetStreamPerform(url, username, password, sink) == OK;
+  // directly to the SD sink and also accepts chunked responses with no
+  // Content-Length.
+  const bool publicHttps = url.rfind("https://", 0) == 0 && username.empty() && password.empty();
+  const bool lowContiguousHeap = ESP.getMaxAllocHeap() < 48 * 1024;
+
+  DownloadError result;
+  if (publicHttps && lowContiguousHeap) {
+    LOG_INF("HTTP", "OPDS choosing direct low-memory TLS path: free=%u maxAlloc=%u",
+            ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+    result = runGetWolfSslLowMemory(url, sink, OPDS_STREAM_TIMEOUT_MS, "OPDS");
+  } else {
+    result = runGetStreamPerform(url, username, password, sink);
+  }
+
+  // If system TLS could not even deliver the first body byte, retry public
+  // HTTPS feeds through the lower-memory wolfSSL path. Never retry after data
+  // has been written, otherwise a streaming sink would receive duplicate XML.
+  if (result != OK && publicHttps && sink.downloaded == 0) {
+    LOG_INF("HTTP", "OPDS retrying with low-memory TLS: free=%u maxAlloc=%u",
+            ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+    result = runGetWolfSslLowMemory(url, sink, OPDS_STREAM_TIMEOUT_MS, "OPDS");
+  }
+  return result == OK;
 }
 
 HttpDownloader::DownloadError HttpDownloader::downloadToFile(const std::string& url, const std::string& destPath,
