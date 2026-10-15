@@ -1989,6 +1989,14 @@ bool EpubReaderActivity::coalesceNavigationWhileLoading() {
   if (fromSideBtn && longPress &&
       SETTINGS.sideButtonLongPress != InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP &&
       SETTINGS.sideButtonLongPress != InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PAGE_SKIP_10) {
+    // The long-press handler normally clears this latch on the physical release.
+    // While rendering/reindexing, however, coalesceNavigationWhileLoading() runs
+    // before loop() and consumes that release. Clear the latch here as well,
+    // otherwise the *next* button action is eaten just to reset stale state.
+    if (mappedInput.wasReleased(MappedInputManager::Button::Up) ||
+        mappedInput.wasReleased(MappedInputManager::Button::Down)) {
+      sideButtonLongPressHandled = false;
+    }
     return true;
   }
 
