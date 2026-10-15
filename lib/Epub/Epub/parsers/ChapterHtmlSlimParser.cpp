@@ -2380,13 +2380,20 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
     //   standalone word for hyphenation purposes, so Liang patterns can produce
     //   "200 Quadrat-" / "kilometer" instead of the unusable "200" / "Quadratkilometer".
     if (static_cast<uint8_t>(s[i]) == 0xC2 && i + 1 < len && static_cast<uint8_t>(s[i + 1]) == 0xA0) {
-      // FB2 converters commonly use NBSP as an ordinary inter-word separator.
-      // The generic EPUB continuation-token representation can become visually
-      // zero-width with some fonts, producing glued words such as "Нуачто?".
-      // For FB2 only, treat NBSP exactly like normal whitespace: flush the word
-      // and let ParsedText add its normal font-aware inter-word advance. EPUB
-      // keeps the original no-break behavior below unchanged.
-      if (self->epub && self->epub->isFb2Package()) {
+      // FB2 converters commonly use NBSP as an ordinary inter-word separator,
+      // except at the start of dialogue: "— Text". That gap must remain a
+      // fixed natural-space width and must not be stretched by justification.
+      // Let the existing continuation-space path below handle only that dash
+      // case; normalize other FB2 NBSPs to normal word boundaries.
+      const bool fb2 = self->epub && self->epub->isFb2Package();
+      const bool followsDialogueDash =
+          self->partWordBufferIndex == 1 && self->partWordBuffer[0] == '-' ||
+          (self->partWordBufferIndex == 3 &&
+           static_cast<uint8_t>(self->partWordBuffer[0]) == 0xE2 &&
+           static_cast<uint8_t>(self->partWordBuffer[1]) == 0x80 &&
+           (static_cast<uint8_t>(self->partWordBuffer[2]) == 0x93 ||
+            static_cast<uint8_t>(self->partWordBuffer[2]) == 0x94));
+      if (fb2 && !followsDialogueDash) {
         if (self->partWordBufferIndex > 0) self->flushPartWordBuffer();
         self->nextWordContinues = false;
         i++;  // Skip 0xA0.
@@ -2412,8 +2419,17 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
     // U+202F (narrow no-break space) — identical logic to U+00A0 above.
     if (static_cast<uint8_t>(s[i]) == 0xE2 && i + 2 < len && static_cast<uint8_t>(s[i + 1]) == 0x80 &&
         static_cast<uint8_t>(s[i + 2]) == 0xAF) {
-      // Same FB2-only normalization for U+202F narrow no-break space.
-      if (self->epub && self->epub->isFb2Package()) {
+      // Same FB2 rule for U+202F: keep a fixed non-stretchable gap
+      // after a dialogue dash, normalize it everywhere else.
+      const bool fb2 = self->epub && self->epub->isFb2Package();
+      const bool followsDialogueDash =
+          self->partWordBufferIndex == 1 && self->partWordBuffer[0] == '-' ||
+          (self->partWordBufferIndex == 3 &&
+           static_cast<uint8_t>(self->partWordBuffer[0]) == 0xE2 &&
+           static_cast<uint8_t>(self->partWordBuffer[1]) == 0x80 &&
+           (static_cast<uint8_t>(self->partWordBuffer[2]) == 0x93 ||
+            static_cast<uint8_t>(self->partWordBuffer[2]) == 0x94));
+      if (fb2 && !followsDialogueDash) {
         if (self->partWordBufferIndex > 0) self->flushPartWordBuffer();
         self->nextWordContinues = false;
         i += 2;
