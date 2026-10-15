@@ -1825,6 +1825,22 @@ void EpubReaderActivity::loop() {
   }
 
   const bool longPress = !fromTilt && mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS;
+
+  // NEXT_NEXT maps both side-button short presses to forward. For long-press
+  // chapter/10-page actions, preserve a physical backward/forward direction:
+  // upper/left side button = backward, lower/right side button = forward.
+  if (fromSideBtn && longPress && SETTINGS.sideButtonLayout == InkMODSettings::NEXT_NEXT &&
+      (SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP ||
+       SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PAGE_SKIP_10)) {
+    const bool topSide = mappedInput.isPressed(MappedInputManager::Button::Up) ||
+                         mappedInput.wasReleased(MappedInputManager::Button::Up);
+    const bool bottomSide = mappedInput.isPressed(MappedInputManager::Button::Down) ||
+                            mappedInput.wasReleased(MappedInputManager::Button::Down);
+    if (topSide != bottomSide) {
+      prevTriggered = topSide;
+      nextTriggered = bottomSide;
+    }
+  }
   const bool skipChapter =
       longPress &&
       (fromSideBtn ? SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP
@@ -1966,6 +1982,26 @@ bool EpubReaderActivity::coalesceNavigationWhileLoading() {
   if (!prevTriggered && !nextTriggered) return false;
 
   const bool longPress = !fromTilt && mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS;
+
+  // Non-navigation hold actions are executed by loop() while the button is held.
+  // If the release lands while rendering is still active, consume it here so it
+  // cannot be reinterpreted as a short forward press (the old back-then-forward flash).
+  if (fromSideBtn && longPress &&
+      SETTINGS.sideButtonLongPress != InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP &&
+      SETTINGS.sideButtonLongPress != InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PAGE_SKIP_10) {
+    return true;
+  }
+
+  if (fromSideBtn && longPress && SETTINGS.sideButtonLayout == InkMODSettings::NEXT_NEXT) {
+    const bool topSide = mappedInput.isPressed(MappedInputManager::Button::Up) ||
+                         mappedInput.wasReleased(MappedInputManager::Button::Up);
+    const bool bottomSide = mappedInput.isPressed(MappedInputManager::Button::Down) ||
+                            mappedInput.wasReleased(MappedInputManager::Button::Down);
+    if (topSide != bottomSide) {
+      prevTriggered = topSide;
+      nextTriggered = bottomSide;
+    }
+  }
   const bool skipChapter =
       longPress &&
       (fromSideBtn ? SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP
