@@ -1795,6 +1795,34 @@ void EpubReaderActivity::loop() {
     }
   }
 
+  // Chapter/10-page actions on the front Left/Right buttons should behave
+  // exactly like side-button long presses: fire as soon as the hold threshold
+  // is crossed, without waiting for release. Keep a one-shot latch until the
+  // physical release so one hold can never trigger twice.
+  const bool frontLongPressNavigation =
+      SETTINGS.longPressButtonBehavior == InkMODSettings::CHAPTER_SKIP ||
+      SETTINGS.longPressButtonBehavior == InkMODSettings::PAGE_SKIP_10;
+  bool timedFrontLongNavigation = false;
+  bool timedFrontLongForward = false;
+  if (frontLongPressNavigation) {
+    const bool leftReleased = mappedInput.wasReleased(MappedInputManager::Button::Left);
+    const bool rightReleased = mappedInput.wasReleased(MappedInputManager::Button::Right);
+    if (frontButtonLongPressHandled && (leftReleased || rightReleased)) {
+      frontButtonLongPressHandled = false;
+      return;
+    }
+
+    if (!frontButtonLongPressHandled && mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS) {
+      const bool prevHeld = mappedInput.isPressed(MappedInputManager::Button::Left);
+      const bool nextHeld = mappedInput.isPressed(MappedInputManager::Button::Right);
+      if (prevHeld != nextHeld) {
+        frontButtonLongPressHandled = true;
+        timedFrontLongNavigation = true;
+        timedFrontLongForward = nextHeld;
+      }
+    }
+  }
+
   // Chapter/10-page side-button actions should fire when the hold threshold
   // is crossed, not when the button is finally released. Keep one-shot state
   // until release so a 5-second hold still performs exactly one action.
@@ -1835,7 +1863,12 @@ void EpubReaderActivity::loop() {
   }
 
   auto [prevTriggered, nextTriggered, fromSideBtn, fromTilt] = ReaderUtils::detectPageTurn(mappedInput);
-  if (timedSideLongNavigation) {
+  if (timedFrontLongNavigation) {
+    prevTriggered = !timedFrontLongForward;
+    nextTriggered = timedFrontLongForward;
+    fromSideBtn = false;
+    fromTilt = false;
+  } else if (timedSideLongNavigation) {
     prevTriggered = !timedSideLongForward;
     nextTriggered = timedSideLongForward;
     fromSideBtn = true;
@@ -2026,6 +2059,30 @@ bool EpubReaderActivity::coalesceNavigationWhileLoading() {
   }
 
   auto [prevTriggered, nextTriggered, fromSideBtn, fromTilt] = ReaderUtils::detectPageTurn(mappedInput);
+
+  const bool frontLongPressNavigation =
+      SETTINGS.longPressButtonBehavior == InkMODSettings::CHAPTER_SKIP ||
+      SETTINGS.longPressButtonBehavior == InkMODSettings::PAGE_SKIP_10;
+  if (frontLongPressNavigation) {
+    const bool leftReleased = mappedInput.wasReleased(MappedInputManager::Button::Left);
+    const bool rightReleased = mappedInput.wasReleased(MappedInputManager::Button::Right);
+    if (frontButtonLongPressHandled && (leftReleased || rightReleased)) {
+      frontButtonLongPressHandled = false;
+      return true;
+    }
+
+    if (!frontButtonLongPressHandled && mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS) {
+      const bool prevHeld = mappedInput.isPressed(MappedInputManager::Button::Left);
+      const bool nextHeld = mappedInput.isPressed(MappedInputManager::Button::Right);
+      if (prevHeld != nextHeld) {
+        frontButtonLongPressHandled = true;
+        prevTriggered = prevHeld;
+        nextTriggered = nextHeld;
+        fromSideBtn = false;
+        fromTilt = false;
+      }
+    }
+  }
 
   const bool sideLongPressNavigation =
       SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP ||
