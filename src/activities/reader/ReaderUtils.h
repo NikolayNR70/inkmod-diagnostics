@@ -166,18 +166,9 @@ inline bool isTouchReaderMenuTap(const MappedInputManager& input) {
 
 inline void displayWithRefreshCycle(const GfxRenderer& renderer, int& pagesUntilFullRefresh) {
   if (pagesUntilFullRefresh <= 1) {
-    if (gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT) {
-      // YACP/FreeInk X3 policy: periodically reinforce the current B/W frame
-      // with the OEM AA-pre-BW(mid) differential waveform instead of doing a
-      // flashing GC/HALF refresh. DTM1 remains the real previous frame, so the
-      // following DU page turn still clears old text correctly.
-      renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
-    } else {
-      // X4 / X4 Pro keep their controller-specific cleanup policy. Their
-      // SSD1677 / UC8179 / UC8279 drivers are not waveform-compatible with
-      // the X3 reinforcement LUT.
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-    }
+    // Keep the proven flashing cleanup until the YACP X3 reinforcement path
+    // is ported together with its complete grayscale/baseline state machine.
+    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
   } else {
     renderer.displayBuffer(HalDisplay::FAST_REFRESH);
