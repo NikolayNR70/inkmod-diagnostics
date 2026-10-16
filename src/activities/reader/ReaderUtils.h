@@ -198,8 +198,33 @@ inline bool shouldUseNoFlashReinforcement(const int pagesUntilRefreshAction,
            SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT));
 }
 
+inline bool x3DoubleNoFlashEnabled() {
+  return gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT;
+}
+
+// Two consecutive OEM AA-pre-BW(mid) passes. The first pass intentionally
+// keeps panel power on; the second is either also intermediate (when a
+// grayscale/AA overlay follows) or final (plain B/W page).
+inline void displayX3DoubleNoFlash(const GfxRenderer& renderer, const bool anotherPassFollows = false) {
+  renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+  if (anotherPassFollows) {
+    renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+  } else {
+    renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+  }
+}
+
 inline void displayWithRefreshCycle(const GfxRenderer& renderer, int& pagesUntilRefreshAction,
                                     const bool pageSupportsNoFlashReinforcement = true) {
+  // Requested X3 mode: every page turn gets two no-flash OEM differential
+  // passes. The refresh-frequency value no longer injects a flashing HALF
+  // refresh while this mode is selected.
+  if (x3DoubleNoFlashEnabled() && pageSupportsNoFlashReinforcement) {
+    displayX3DoubleNoFlash(renderer);
+    pagesUntilRefreshAction = SETTINGS.getRefreshFrequency();
+    return;
+  }
+
   if (isRefreshActionDue(pagesUntilRefreshAction)) {
     if (shouldUseNoFlashReinforcement(pagesUntilRefreshAction, pageSupportsNoFlashReinforcement)) {
       renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
