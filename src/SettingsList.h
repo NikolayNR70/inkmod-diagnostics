@@ -332,12 +332,6 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
         StrId::STR_REFRESH_FREQ, &InkMODSettings::refreshFrequency,
         {StrId::STR_PAGES_1, StrId::STR_PAGES_5, StrId::STR_PAGES_10, StrId::STR_PAGES_15, StrId::STR_PAGES_30},
         "refreshFrequency", StrId::STR_CAT_DISPLAY));
-    if (gpio.deviceIsX3()) {
-      add(SettingInfo::Enum(
-          StrId::STR_REFRESH_ACTION, &InkMODSettings::refreshAction,
-          {StrId::STR_REFRESH_ACTION_FULL, StrId::STR_REFRESH_ACTION_BW_REINFORCEMENT},
-          "refreshAction", StrId::STR_CAT_DISPLAY));
-    }
     add(SettingInfo::Enum(
             StrId::STR_UI_THEME, &InkMODSettings::uiTheme,
             {StrId::STR_THEME_CLASSIC, StrId::STR_THEME_MINIMAL, StrId::STR_THEME_LYRA, StrId::STR_THEME_LYRA_EXTENDED,
