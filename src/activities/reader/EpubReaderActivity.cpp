@@ -3213,6 +3213,10 @@ bool EpubReaderActivity::handleShortcutAction(const uint8_t rawAction) {
       }
       pageTurn(true, "home");
       return true;
+    case InkMODSettings::SHORT_PWRBTN::REINFORCE_SCREEN:
+      ReaderUtils::forceBwReinforcement(pagesUntilFullRefresh);
+      requestUpdate();
+      return true;
     case InkMODSettings::SHORT_PWRBTN::TOGGLE_FONT:
       executeReaderQuickAction(InkMODSettings::LONG_MENU_CHANGE_FONT);
       return true;
