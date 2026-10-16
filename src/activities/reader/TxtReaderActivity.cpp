@@ -430,6 +430,9 @@ void TxtReaderActivity::initializeReader() {
                                         topStatusBarReservedHeight + ReaderUtils::STATUS_BAR_TEXT_PADDING);
   } else {
     cachedOrientedMarginTop += cachedScreenMargin;
+    if (gpio.deviceIsX3() && SETTINGS.orientation == InkMODSettings::ORIENTATION::PORTRAIT) {
+      cachedOrientedMarginTop = std::max(0, cachedOrientedMarginTop - 6);
+    }
   }
   cachedOrientedMarginBottom += std::max(
       cachedScreenMargin,
@@ -863,6 +866,9 @@ bool TxtReaderActivity::drawCurrentPageToBuffer(const std::string& filePath, Gfx
         std::max(static_cast<int>(screenMargin), topStatusBarReservedHeight + ReaderUtils::STATUS_BAR_TEXT_PADDING);
   } else {
     marginTop += screenMargin;
+    if (gpio.deviceIsX3() && SETTINGS.orientation == InkMODSettings::ORIENTATION::PORTRAIT) {
+      marginTop = std::max(0, marginTop - 6);
+    }
   }
   marginBottom += std::max(screenMargin, static_cast<uint8_t>(UITheme::getInstance().getStatusBarHeight() +
                                                               ReaderUtils::STATUS_BAR_TEXT_PADDING));
