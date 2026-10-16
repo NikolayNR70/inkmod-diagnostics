@@ -380,10 +380,7 @@ bool TxtReaderActivity::executeLongPressBackAction() {
       enterDeepSleep();
       return true;
     case InkMODSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_REFRESH_SCREEN:
-      // Clean ghosting immediately, then repaint normally so smoothing/grayscale
-      // is restored instead of leaving the page in the temporary 1-bit state.
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+      ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
       requestUpdate();
       return true;
     case InkMODSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_FILE_TRANSFER:
@@ -643,13 +640,23 @@ void TxtReaderActivity::renderPage() {
                               ReaderUtils::readerDarkModeEnabled());
   }
 
-  ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
-
-  // Text AA uses the same renderer profile as EPUB/FB2. On X4 Pro
-  // the glyph gray levels are darkened and the helper re-seeds the B/W panel
-  // baseline afterward, preserving smoothing without the old pale/ghosted text.
-  if (SETTINGS.textAntiAliasing && ReaderUtils::readerForegroundBlack()) {
+  const bool needsTextGrayscale = SETTINGS.textAntiAliasing && ReaderUtils::readerForegroundBlack();
+  if (needsTextGrayscale) {
+    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+      if (ReaderUtils::shouldUseNoFlashReinforcement(pagesUntilFullRefresh)) {
+        renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+      } else {
+        renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
+        renderer.preconditionGrayscale();
+      }
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else {
+      renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+      ReaderUtils::countOrdinaryRefresh(pagesUntilFullRefresh);
+    }
     ReaderUtils::renderAntiAliased(renderer, [&renderLines]() { renderLines(); });
+  } else {
+    ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
   }
   // scope destructor clears font cache via FontCacheManager
 }
