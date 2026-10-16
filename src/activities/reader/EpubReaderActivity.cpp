@@ -3088,10 +3088,7 @@ void EpubReaderActivity::executeReaderQuickAction(InkMODSettings::LONG_PRESS_MEN
       onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction::BOOKMARK_TOGGLE);
       break;
     case InkMODSettings::LONG_MENU_REFRESH_SCREEN:
-      // Clean ghosting immediately, then repaint through the normal reader path
-      // so grayscale/anti-aliasing is applied again after the forced refresh.
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+      ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
       requestUpdate();
       break;
     case InkMODSettings::LONG_MENU_SYNC_PROGRESS:
@@ -4780,37 +4777,51 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
   };
 
   if (pageHasImages && !BoardConfig::isX4Pro()) {
-    // Double FAST_REFRESH with selective image blanking (pablohc's technique):
-    // HALF_REFRESH sets particles too firmly for the grayscale LUT to adjust.
-    // Instead, blank only the image area and do two fast refreshes.
-    // Step 1: Display page with image area blanked (text appears, image area white)
-    // Step 2: Re-render with images and display again (images appear clean)
+    // Image pages keep the existing double-fast cleanup technique. Both passes
+    // are intermediate because the grayscale overlay follows immediately.
     int16_t imgX, imgY, imgW, imgH;
     if (page->getImageBoundingBox(imgX, imgY, imgW, imgH)) {
       renderer.fillRect(imgX + orientedMarginLeft, imgY + pageRenderY, imgW, imgH, false);
       const auto tImageBlankDisplay = millis();
-      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+      renderer.displayBufferIntermediate(HalDisplay::FAST_REFRESH);
       const uint32_t imageBlankDisplayMs = millis() - tImageBlankDisplay;
 
-      // Re-render page content to restore images into the blanked area
-      // Status bar is not re-rendered here to avoid reading stale dynamic values (e.g. battery %)
       const auto tImageRestoreRender = millis();
       composePageBuffer();
       const uint32_t imageRestoreRenderMs = millis() - tImageRestoreRender;
       const auto tImageFinalDisplay = millis();
-      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+      renderer.displayBufferIntermediate(HalDisplay::FAST_REFRESH);
       const uint32_t imageFinalDisplayMs = millis() - tImageFinalDisplay;
       logImagePageProfile(imageBlankDisplayMs, imageRestoreRenderMs, imageFinalDisplayMs);
     } else {
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
+      renderer.preconditionGrayscale();
     }
-    // The image's own page is handled above and doesn't count toward the full
-    // refresh cadence. But the grayscale pass below leaves gray charge in the
-    // image region that a plain fast diff on the *next* page can't clear, so
-    // text there ghosts gray (#2190). Force the next ordinary page onto the
-    // HALF ghost-cleanup path, which drives every pixel to its target
-    // regardless of residue.
-    pagesUntilFullRefresh = 1;
+    // Grayscale image charge is not safe for the next ordinary differential
+    // text page. Force a real cleanup on that next page.
+    ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
+  } else if (needsAnyGrayscale) {
+    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+      const bool textOnlyNoFlashReinforcement =
+          needsTextGrayscale && !needsImageGrayscale &&
+          ReaderUtils::shouldUseNoFlashReinforcement(pagesUntilFullRefresh);
+      if (textOnlyNoFlashReinforcement) {
+        // X3 no-flash maintenance: use the OEM differential BW base but keep
+        // the panel powered because the AA gray planes follow immediately.
+        renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+      } else {
+        // Manual/forced cleanup or image-gray pages require a strong clean
+        // baseline before rebuilding the grayscale planes.
+        renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
+        renderer.preconditionGrayscale();
+      }
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else {
+      // Ordinary AA page turn: keep DTM1/DTM2 coherent with the visible BW
+      // frame, then overlay grayscale and re-seed the B/W baseline afterward.
+      renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+      ReaderUtils::countOrdinaryRefresh(pagesUntilFullRefresh);
+    }
   } else {
     ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
   }
