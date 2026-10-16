@@ -1905,8 +1905,18 @@ void GfxRenderer::displayBuffer(const HalDisplay::RefreshMode refreshMode, const
   display.displayBuffer(effective, fadingFix || turnOffScreen);
 }
 
+void GfxRenderer::displayBufferIntermediate(const HalDisplay::RefreshMode refreshMode) const {
+  auto elapsed = millis() - start_ms;
+  LOG_DBG("GFX", "Time = %lu ms from clearScreen to intermediate displayBuffer", elapsed);
+  display.displayBuffer(refreshMode, false);
+}
+
 void GfxRenderer::displayGrayscaleBase(const HalDisplay::RefreshMode fallback, const bool turnOffScreen) const {
   display.displayGrayscaleBase(fallback, fadingFix || turnOffScreen);
+}
+
+void GfxRenderer::displayGrayscaleBaseIntermediate(const HalDisplay::RefreshMode fallback) const {
+  display.displayGrayscaleBase(fallback, false);
 }
 
 void GfxRenderer::preconditionGrayscale() const { display.preconditionGrayscale(); }
