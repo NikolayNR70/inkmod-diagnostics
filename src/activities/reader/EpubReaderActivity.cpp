@@ -1664,10 +1664,12 @@ void EpubReaderActivity::loop() {
     if (SETTINGS.longPressBackAction == InkMODSettings::LONG_MENU_SYNC_PROGRESS ||
         SETTINGS.longPressBackAction == InkMODSettings::LONG_MENU_QUICK_SYNC ||
         SETTINGS.longPressBackAction == InkMODSettings::LONG_MENU_QUICK_SYNC_LEGACY_ALT) {
-      // Do not enter Wi-Fi/KOReader sync while Back is physically held.
-      pendingLongBackSyncAction = static_cast<InkMODSettings::LONG_PRESS_MENU_ACTION>(SETTINGS.longPressBackAction);
-      pendingLongBackSyncOnRelease = true;
-      BootLog::step("SYNC", "progress sync armed; waiting for Back release");
+      // Fire as soon as the long-press threshold is crossed. Suppress the
+      // eventual physical release so the sync activity cannot interpret it
+      // as its own Back action.
+      mappedInput.suppressNextBackRelease();
+      BootLog::step("SYNC", "long-press Back threshold reached; starting progress sync");
+      executeReaderQuickAction(static_cast<InkMODSettings::LONG_PRESS_MENU_ACTION>(SETTINGS.longPressBackAction));
     } else {
       executeReaderQuickAction(static_cast<InkMODSettings::LONG_PRESS_MENU_ACTION>(SETTINGS.longPressBackAction));
       BootLog::step("SYNC", "executeReaderQuickAction() returned");
@@ -1793,7 +1795,52 @@ void EpubReaderActivity::loop() {
     }
   }
 
+  // Chapter/10-page side-button actions should fire when the hold threshold
+  // is crossed, not when the button is finally released. Keep one-shot state
+  // until release so a 5-second hold still performs exactly one action.
+  const bool sideLongPressNavigation =
+      SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP ||
+      SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PAGE_SKIP_10;
+  bool timedSideLongNavigation = false;
+  bool timedSideLongForward = false;
+  if (sideLongPressNavigation) {
+    const bool topReleased = mappedInput.wasReleased(MappedInputManager::Button::Up);
+    const bool bottomReleased = mappedInput.wasReleased(MappedInputManager::Button::Down);
+    if (sideButtonLongPressHandled && (topReleased || bottomReleased)) {
+      sideButtonLongPressHandled = false;
+      return;
+    }
+
+    if (!sideButtonLongPressHandled && mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS) {
+      bool prevHeld = mappedInput.isPressed(MappedInputManager::Button::PageBack);
+      bool nextHeld = mappedInput.isPressed(MappedInputManager::Button::PageForward);
+
+      // NEXT_NEXT maps both physical buttons to PageForward for short presses.
+      // For a hold, preserve the ergonomic two-direction behavior.
+      if (SETTINGS.sideButtonLayout == InkMODSettings::NEXT_NEXT) {
+        const bool topHeld = mappedInput.isPressed(MappedInputManager::Button::Up);
+        const bool bottomHeld = mappedInput.isPressed(MappedInputManager::Button::Down);
+        if (topHeld != bottomHeld) {
+          prevHeld = topHeld;
+          nextHeld = bottomHeld;
+        }
+      }
+
+      if (prevHeld != nextHeld) {
+        sideButtonLongPressHandled = true;
+        timedSideLongNavigation = true;
+        timedSideLongForward = nextHeld;
+      }
+    }
+  }
+
   auto [prevTriggered, nextTriggered, fromSideBtn, fromTilt] = ReaderUtils::detectPageTurn(mappedInput);
+  if (timedSideLongNavigation) {
+    prevTriggered = !timedSideLongForward;
+    nextTriggered = timedSideLongForward;
+    fromSideBtn = true;
+    fromTilt = false;
+  }
   const bool powerReleased = mappedInput.wasReleased(MappedInputManager::Button::Power);
   const bool shortPowerTurn = SETTINGS.shortPwrBtn == InkMODSettings::SHORT_PWRBTN::PAGE_TURN && powerReleased &&
                               mappedInput.getHeldTime() < SETTINGS.getPowerButtonLongPressDuration();
@@ -1979,6 +2026,41 @@ bool EpubReaderActivity::coalesceNavigationWhileLoading() {
   }
 
   auto [prevTriggered, nextTriggered, fromSideBtn, fromTilt] = ReaderUtils::detectPageTurn(mappedInput);
+
+  const bool sideLongPressNavigation =
+      SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP ||
+      SETTINGS.sideButtonLongPress == InkMODSettings::SIDE_LONG_PRESS::SIDE_LONG_PAGE_SKIP_10;
+  if (sideLongPressNavigation) {
+    const bool topReleased = mappedInput.wasReleased(MappedInputManager::Button::Up);
+    const bool bottomReleased = mappedInput.wasReleased(MappedInputManager::Button::Down);
+    if (sideButtonLongPressHandled && (topReleased || bottomReleased)) {
+      sideButtonLongPressHandled = false;
+      return true;
+    }
+
+    if (!sideButtonLongPressHandled && mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS) {
+      bool prevHeld = mappedInput.isPressed(MappedInputManager::Button::PageBack);
+      bool nextHeld = mappedInput.isPressed(MappedInputManager::Button::PageForward);
+
+      if (SETTINGS.sideButtonLayout == InkMODSettings::NEXT_NEXT) {
+        const bool topHeld = mappedInput.isPressed(MappedInputManager::Button::Up);
+        const bool bottomHeld = mappedInput.isPressed(MappedInputManager::Button::Down);
+        if (topHeld != bottomHeld) {
+          prevHeld = topHeld;
+          nextHeld = bottomHeld;
+        }
+      }
+
+      if (prevHeld != nextHeld) {
+        sideButtonLongPressHandled = true;
+        prevTriggered = prevHeld;
+        nextTriggered = nextHeld;
+        fromSideBtn = true;
+        fromTilt = false;
+      }
+    }
+  }
+
   if (!prevTriggered && !nextTriggered) return false;
 
   const bool longPress = !fromTilt && mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS;
@@ -3289,10 +3371,10 @@ void EpubReaderActivity::executeLongPressMenuAction() {
   if (SETTINGS.longPressMenuAction == InkMODSettings::LONG_MENU_SYNC_PROGRESS ||
       SETTINGS.longPressMenuAction == InkMODSettings::LONG_MENU_QUICK_SYNC ||
       SETTINGS.longPressMenuAction == InkMODSettings::LONG_MENU_QUICK_SYNC_LEGACY_ALT) {
-    pendingLongMenuSyncAction = static_cast<InkMODSettings::LONG_PRESS_MENU_ACTION>(SETTINGS.longPressMenuAction);
-    pendingLongMenuSyncOnRelease = true;
-    BootLog::step("SYNC", "progress sync armed; waiting for Menu release");
-    return;
+    // Start immediately when the hold threshold is reached. The release belongs
+    // to the old reader screen, not to the newly opened sync activity.
+    mappedInput.suppressNextConfirmRelease();
+    BootLog::step("SYNC", "long-press Menu threshold reached; starting progress sync");
   }
   executeReaderQuickAction(static_cast<InkMODSettings::LONG_PRESS_MENU_ACTION>(SETTINGS.longPressMenuAction));
 }
