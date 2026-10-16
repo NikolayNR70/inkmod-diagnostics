@@ -614,7 +614,10 @@ void XtcReaderActivity::renderPage() {
     // on every XTC page. Use the same refresh cadence as the normal reader:
     // fast/partial turns most of the time, with a full cleanup only when the
     // configured refresh cycle says it is due.
-    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+    if (ReaderUtils::x3DoubleNoFlashEnabled()) {
+      ReaderUtils::displayX3DoubleNoFlash(renderer, true);
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
       renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
       renderer.preconditionGrayscale();
       pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
@@ -768,7 +771,10 @@ void XtcReaderActivity::renderPage() {
     }
 
     // Display BW with conditional refresh based on pagesUntilFullRefresh
-    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+    if (ReaderUtils::x3DoubleNoFlashEnabled()) {
+      ReaderUtils::displayX3DoubleNoFlash(renderer, true);
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
       renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
       renderer.preconditionGrayscale();
       pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
