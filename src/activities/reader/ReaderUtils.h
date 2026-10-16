@@ -166,7 +166,7 @@ inline bool isTouchReaderMenuTap(const MappedInputManager& input) {
 
 inline void displayWithRefreshCycle(const GfxRenderer& renderer, int& pagesUntilFullRefresh) {
   if (pagesUntilFullRefresh <= 1) {
-    if (gpio.deviceIsX3()) {
+    if (gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT) {
       // YACP/FreeInk X3 policy: periodically reinforce the current B/W frame
       // with the OEM AA-pre-BW(mid) differential waveform instead of doing a
       // flashing GC/HALF refresh. DTM1 remains the real previous frame, so the
