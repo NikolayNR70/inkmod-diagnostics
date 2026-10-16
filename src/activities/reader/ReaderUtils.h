@@ -164,15 +164,52 @@ inline bool isTouchReaderMenuTap(const MappedInputManager& input) {
   return x >= width / 3 && x < width - width / 3 && y >= height / 3 && y < height - height / 3;
 }
 
-inline void displayWithRefreshCycle(const GfxRenderer& renderer, int& pagesUntilFullRefresh) {
-  if (pagesUntilFullRefresh <= 1) {
-    // Keep the proven flashing cleanup until the YACP X3 reinforcement path
-    // is ported together with its complete grayscale/baseline state machine.
-    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-    pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+inline bool isRefreshActionDue(const int pagesUntilRefreshAction) {
+  return pagesUntilRefreshAction != InkMODSettings::REFRESH_COUNTDOWN_DISABLED && pagesUntilRefreshAction <= 1;
+}
+
+inline bool isFullRefreshForced(const int pagesUntilRefreshAction) {
+  return pagesUntilRefreshAction == InkMODSettings::REFRESH_COUNTDOWN_FORCE_FULL;
+}
+
+inline bool isBwReinforcementForced(const int pagesUntilRefreshAction) {
+  return pagesUntilRefreshAction == InkMODSettings::REFRESH_COUNTDOWN_FORCE_BW_REINFORCEMENT;
+}
+
+inline void forceFullRefresh(int& pagesUntilRefreshAction) {
+  pagesUntilRefreshAction = InkMODSettings::REFRESH_COUNTDOWN_FORCE_FULL;
+}
+
+inline void forceBwReinforcement(int& pagesUntilRefreshAction) {
+  pagesUntilRefreshAction = InkMODSettings::REFRESH_COUNTDOWN_FORCE_BW_REINFORCEMENT;
+}
+
+inline void countOrdinaryRefresh(int& pagesUntilRefreshAction) {
+  if (pagesUntilRefreshAction != InkMODSettings::REFRESH_COUNTDOWN_DISABLED) {
+    pagesUntilRefreshAction--;
+  }
+}
+
+inline bool shouldUseNoFlashReinforcement(const int pagesUntilRefreshAction,
+                                          const bool pageSupportsNoFlashReinforcement = true) {
+  return gpio.deviceIsX3() && pageSupportsNoFlashReinforcement &&
+         (isBwReinforcementForced(pagesUntilRefreshAction) ||
+          (!isFullRefreshForced(pagesUntilRefreshAction) &&
+           SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT));
+}
+
+inline void displayWithRefreshCycle(const GfxRenderer& renderer, int& pagesUntilRefreshAction,
+                                    const bool pageSupportsNoFlashReinforcement = true) {
+  if (isRefreshActionDue(pagesUntilRefreshAction)) {
+    if (shouldUseNoFlashReinforcement(pagesUntilRefreshAction, pageSupportsNoFlashReinforcement)) {
+      renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+    } else {
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    }
+    pagesUntilRefreshAction = SETTINGS.getRefreshFrequency();
   } else {
     renderer.displayBuffer(HalDisplay::FAST_REFRESH);
-    pagesUntilFullRefresh--;
+    countOrdinaryRefresh(pagesUntilRefreshAction);
   }
 }
 
@@ -201,6 +238,10 @@ void renderAntiAliased(GfxRenderer& renderer, RenderFn&& renderFn) {
   renderer.setRenderMode(GfxRenderer::BW);
 
   renderer.restoreBwBuffer();
+  // The controller's gray planes were just displayed; restore the B/W RAM
+  // baseline so the next differential page turn compares against real B/W,
+  // not against stale grayscale plane contents.
+  renderer.cleanupGrayscaleWithFrameBuffer();
 }
 
 }  // namespace ReaderUtils
