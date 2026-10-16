@@ -4801,29 +4801,26 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
         renderer.preconditionGrayscale();
       }
     }
-    if (ReaderUtils::x3DoubleNoFlashEnabled()) {
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
-    } else {
-      ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
-    }
+    // Grayscale image pages keep their conservative cleanup rule; the
+    // no-flash double pass is reserved for text-only X3 pages.
+    ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
   } else if (needsAnyGrayscale) {
-    if (ReaderUtils::x3DoubleNoFlashEnabled()) {
-      // AA/grayscale follows, so both reinforcement passes must keep panel
-      // power alive. The gray overlay is the final physical pass.
-      ReaderUtils::displayX3DoubleNoFlash(renderer, true);
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
-    } else if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
       const bool textOnlyNoFlashReinforcement =
           needsTextGrayscale && !needsImageGrayscale &&
           ReaderUtils::shouldUseNoFlashReinforcement(pagesUntilFullRefresh);
       if (textOnlyNoFlashReinforcement) {
-        renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+        // Cleanup due: two no-flash X3 reinforcement passes, then the AA
+        // overlay. With refresh frequency = 1 this happens on every page.
+        ReaderUtils::displayX3DoubleNoFlash(renderer, true);
       } else {
         renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
         renderer.preconditionGrayscale();
       }
       pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
     } else {
+      // Ordinary page turn between cleanup intervals: one differential base
+      // pass, matching YACP.
       renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
       ReaderUtils::countOrdinaryRefresh(pagesUntilFullRefresh);
     }
