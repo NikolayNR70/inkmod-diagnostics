@@ -4797,8 +4797,6 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
       renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
       renderer.preconditionGrayscale();
     }
-    // Grayscale image charge is not safe for the next ordinary differential
-    // text page. Force a real cleanup on that next page.
     ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
   } else if (needsAnyGrayscale) {
     if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
@@ -4806,19 +4804,13 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
           needsTextGrayscale && !needsImageGrayscale &&
           ReaderUtils::shouldUseNoFlashReinforcement(pagesUntilFullRefresh);
       if (textOnlyNoFlashReinforcement) {
-        // X3 no-flash maintenance: use the OEM differential BW base but keep
-        // the panel powered because the AA gray planes follow immediately.
         renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
       } else {
-        // Manual/forced cleanup or image-gray pages require a strong clean
-        // baseline before rebuilding the grayscale planes.
         renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
         renderer.preconditionGrayscale();
       }
       pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
     } else {
-      // Ordinary AA page turn: keep DTM1/DTM2 coherent with the visible BW
-      // frame, then overlay grayscale and re-seed the B/W baseline afterward.
       renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
       ReaderUtils::countOrdinaryRefresh(pagesUntilFullRefresh);
     }
