@@ -549,24 +549,24 @@ bool handleGlobalShortcutAction(const InkMODSettings::SHORT_PWRBTN action) {
       enterDeepSleep(true);
       return true;
     case InkMODSettings::SHORT_PWRBTN::FORCE_REFRESH: {
-      LOG_DBG("MAIN", "Manual screen refresh triggered");
-      const bool repaintReaderGrayscale = activityManager.isCurrentReaderActivity();
-      const bool noFlashX3 =
-          gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT;
-      {
-        RenderLock lock;
-        if (noFlashX3) {
-          // Explicit X3 no-flash refresh: two consecutive OEM differential
-          // reinforcement passes, matching the stronger YACP-style settle.
-          ReaderUtils::displayX3DoubleNoFlash(renderer);
-        } else {
-          renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-        }
+      LOG_DBG("MAIN", "Manual full screen refresh triggered");
+      RenderLock lock;
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      return true;
+    }
+    case InkMODSettings::SHORT_PWRBTN::REINFORCE_SCREEN: {
+      // Exactly like YACP: readers route the action through their normal render
+      // path so AA/grayscale stays coherent. Outside a reader, reinforce the
+      // currently displayed B/W framebuffer directly.
+      if (activityManager.isCurrentReaderActivity()) {
+        return false;
       }
-      // In no-flash mode the two passes above are the whole action. Do not
-      // immediately repaint the reader, otherwise we'd add another refresh.
-      if (repaintReaderGrayscale && !noFlashX3) {
-        activityManager.requestUpdate();
+      LOG_DBG("MAIN", "Manual X3 no-flash screen reinforcement triggered");
+      RenderLock lock;
+      if (gpio.deviceIsX3()) {
+        ReaderUtils::displayX3DoubleNoFlash(renderer);
+      } else {
+        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
       }
       return true;
     }
