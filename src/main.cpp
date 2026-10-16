@@ -555,15 +555,16 @@ bool handleGlobalShortcutAction(const InkMODSettings::SHORT_PWRBTN action) {
       {
         RenderLock lock;
         if (noFlashX3) {
-          // Same OEM differential settle used by YACP's X3 no-flash action.
-          // The reader is repainted below so its AA/grayscale overlay is
-          // rebuilt on top of the reinforced B/W baseline.
-          renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+          // Explicit X3 no-flash refresh: two consecutive OEM differential
+          // reinforcement passes, matching the stronger YACP-style settle.
+          ReaderUtils::displayX3DoubleNoFlash(renderer);
         } else {
           renderer.displayBuffer(HalDisplay::HALF_REFRESH);
         }
       }
-      if (repaintReaderGrayscale) {
+      // In no-flash mode the two passes above are the whole action. Do not
+      // immediately repaint the reader, otherwise we'd add another refresh.
+      if (repaintReaderGrayscale && !noFlashX3) {
         activityManager.requestUpdate();
       }
       return true;
