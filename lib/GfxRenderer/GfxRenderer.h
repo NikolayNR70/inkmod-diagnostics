@@ -191,6 +191,9 @@ class GfxRenderer {
   int getScreenHeight() const;
   void tapToLogical(float nx, float ny, int& outX, int& outY) const;
   void displayBuffer(HalDisplay::RefreshMode refreshMode = HalDisplay::FAST_REFRESH, bool turnOffScreen = false) const;
+  void displayGrayscaleBase(HalDisplay::RefreshMode fallback = HalDisplay::HALF_REFRESH,
+                            bool turnOffScreen = false) const;
+  void preconditionGrayscale() const;
   void promoteNextRefresh(const HalDisplay::RefreshMode mode) const {
     promotedRefreshPending_ = true;
     promotedRefresh_ = mode;
