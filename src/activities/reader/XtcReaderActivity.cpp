@@ -380,10 +380,7 @@ bool XtcReaderActivity::executeLongPressBackAction() {
       enterDeepSleep();
       return true;
     case InkMODSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_REFRESH_SCREEN:
-      // Clean ghosting immediately, then repaint normally so smoothing/grayscale
-      // is restored instead of leaving the page in the temporary 1-bit state.
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+      ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
       requestUpdate();
       return true;
     case InkMODSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_FILE_TRANSFER:
@@ -617,7 +614,14 @@ void XtcReaderActivity::renderPage() {
     // on every XTC page. Use the same refresh cadence as the normal reader:
     // fast/partial turns most of the time, with a full cleanup only when the
     // configured refresh cycle says it is due.
-    ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
+    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+      renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
+      renderer.preconditionGrayscale();
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else {
+      renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+      ReaderUtils::countOrdinaryRefresh(pagesUntilFullRefresh);
+    }
 
     // X4 Pro / UC8279: do not run the native grayscale overlay after the B/W
     // base. The overlay leaves gray edge charge that the following differential
@@ -764,7 +768,14 @@ void XtcReaderActivity::renderPage() {
     }
 
     // Display BW with conditional refresh based on pagesUntilFullRefresh
-    ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
+    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+      renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
+      renderer.preconditionGrayscale();
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else {
+      renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+      ReaderUtils::countOrdinaryRefresh(pagesUntilFullRefresh);
+    }
 
     // X4 Pro / UC8279: as in the streaming XTCH path above, stop at the clean
     // B/W base. The old grayscale overlay is the source of accumulated ghosting
