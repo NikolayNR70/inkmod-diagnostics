@@ -216,18 +216,11 @@ inline void displayX3DoubleNoFlash(const GfxRenderer& renderer, const bool anoth
 
 inline void displayWithRefreshCycle(const GfxRenderer& renderer, int& pagesUntilRefreshAction,
                                     const bool pageSupportsNoFlashReinforcement = true) {
-  // Requested X3 mode: every page turn gets two no-flash OEM differential
-  // passes. The refresh-frequency value no longer injects a flashing HALF
-  // refresh while this mode is selected.
-  if (x3DoubleNoFlashEnabled() && pageSupportsNoFlashReinforcement) {
-    displayX3DoubleNoFlash(renderer);
-    pagesUntilRefreshAction = SETTINGS.getRefreshFrequency();
-    return;
-  }
-
   if (isRefreshActionDue(pagesUntilRefreshAction)) {
     if (shouldUseNoFlashReinforcement(pagesUntilRefreshAction, pageSupportsNoFlashReinforcement)) {
-      renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+      // The X3 no-flash cleanup is deliberately stronger than an ordinary
+      // page turn: two consecutive OEM AA-pre-BW(mid) reinforcement passes.
+      displayX3DoubleNoFlash(renderer);
     } else {
       renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     }
