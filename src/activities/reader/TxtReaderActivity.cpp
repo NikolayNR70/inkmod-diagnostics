@@ -382,11 +382,7 @@ bool TxtReaderActivity::executeLongPressBackAction() {
     case InkMODSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_REFRESH_SCREEN:
       // Clean ghosting immediately, then repaint normally so smoothing/grayscale
       // is restored instead of leaving the page in the temporary 1-bit state.
-      if (gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT) {
-        renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
-      } else {
-        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-      }
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
       pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
       requestUpdate();
       return true;
