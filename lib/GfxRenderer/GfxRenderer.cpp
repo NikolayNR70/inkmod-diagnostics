@@ -1905,6 +1905,12 @@ void GfxRenderer::displayBuffer(const HalDisplay::RefreshMode refreshMode, const
   display.displayBuffer(effective, fadingFix || turnOffScreen);
 }
 
+void GfxRenderer::displayGrayscaleBase(const HalDisplay::RefreshMode fallback, const bool turnOffScreen) const {
+  display.displayGrayscaleBase(fallback, fadingFix || turnOffScreen);
+}
+
+void GfxRenderer::preconditionGrayscale() const { display.preconditionGrayscale(); }
+
 std::string GfxRenderer::truncatedText(const int fontId, const char* text, const int maxWidth,
                                        const EpdFontFamily::Style style) const {
   if (!text || maxWidth <= 0) return "";
