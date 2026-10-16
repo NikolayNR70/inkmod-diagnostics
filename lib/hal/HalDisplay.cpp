@@ -152,8 +152,12 @@ void HalDisplay::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) { einkDisplay.
 
 void HalDisplay::displayGrayscaleBase(RefreshMode fallback, bool turnOffScreen) {
   HalSpiBus::Lock spiLock;
-  // Keep this path differential on X3: unlike displayBuffer(HALF), this is
-  // specifically the no-flash OEM reinforcement path used between page turns.
+  // A HALF fallback means the caller explicitly needs a clean baseline before
+  // grayscale. On X3 force the controller to rebuild DTM1/DTM2 first; the FAST
+  // path remains differential and is used for no-flash page maintenance.
+  if (gpio.deviceIsX3() && fallback == RefreshMode::HALF_REFRESH) {
+    einkDisplay.requestResync(1);
+  }
   einkDisplay.displayGrayscaleBase(convertRefreshMode(fallback), turnOffScreen);
 }
 
