@@ -538,6 +538,10 @@ class InkMODSettings {
   // Get singleton instance
   static InkMODSettings& getInstance() { return instance; }
 
+  static constexpr int REFRESH_COUNTDOWN_FORCE_BW_REINFORCEMENT = -2;
+  static constexpr int REFRESH_COUNTDOWN_DISABLED = -1;
+  static constexpr int REFRESH_COUNTDOWN_FORCE_FULL = 0;
+
   static constexpr uint16_t POWER_BUTTON_WAKE_SHORT_MS = 10;
   static constexpr uint16_t POWER_BUTTON_WAKE_LONG_MS = 200;
   static constexpr uint16_t POWER_BUTTON_LONG_PRESS_MS = 400;
