@@ -86,6 +86,7 @@ inline esp_sleep_wakeup_cause_t esp_sleep_get_wakeup_cause() { return ESP_SLEEP_
 #include "activities/reader/EpubReaderUtils.h"
 #include "activities/reader/KOReaderSyncActivity.h"
 #include "activities/reader/ReadingStatsUtils.h"
+#include "activities/reader/ReaderUtils.h"
 #include "activities/reader/StatsBackup.h"
 #include "activities/settings/KOReaderSettingsActivity.h"
 #include "activities/settings/SdFirmwareUpdateActivity.h"
