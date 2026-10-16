@@ -150,6 +150,18 @@ void HalDisplay::copyGrayscaleMsbBuffers(const uint8_t* msbBuffer) { einkDisplay
 
 void HalDisplay::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) { einkDisplay.cleanupGrayscaleBuffers(bwBuffer); }
 
+void HalDisplay::displayGrayscaleBase(RefreshMode fallback, bool turnOffScreen) {
+  HalSpiBus::Lock spiLock;
+  // Keep this path differential on X3: unlike displayBuffer(HALF), this is
+  // specifically the no-flash OEM reinforcement path used between page turns.
+  einkDisplay.displayGrayscaleBase(convertRefreshMode(fallback), turnOffScreen);
+}
+
+void HalDisplay::preconditionGrayscale() {
+  HalSpiBus::Lock spiLock;
+  einkDisplay.preconditionGrayscale();
+}
+
 void HalDisplay::displayGrayBuffer(bool turnOffScreen, bool factoryMode) {
   HalSpiBus::Lock spiLock;
   einkDisplay.displayGrayBuffer(turnOffScreen, nullptr, factoryMode);
