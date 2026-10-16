@@ -220,6 +220,10 @@ void XtcReaderActivity::loop() {
       case InkMODSettings::SHORT_PWRBTN::FILE_BROWSER:
         activityManager.goToFileBrowser(xtc ? xtc->getPath() : "");
         return true;
+      case InkMODSettings::SHORT_PWRBTN::REINFORCE_SCREEN:
+        ReaderUtils::forceBwReinforcement(pagesUntilFullRefresh);
+        requestUpdate();
+        return true;
       default:
         return false;
     }
