@@ -550,14 +550,19 @@ bool handleGlobalShortcutAction(const InkMODSettings::SHORT_PWRBTN action) {
     case InkMODSettings::SHORT_PWRBTN::FORCE_REFRESH: {
       LOG_DBG("MAIN", "Manual screen refresh triggered");
       const bool repaintReaderGrayscale = activityManager.isCurrentReaderActivity();
+      const bool noFlashX3 =
+          gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT;
       {
         RenderLock lock;
-        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+        if (noFlashX3) {
+          // Same OEM differential settle used by YACP's X3 no-flash action.
+          // The reader is repainted below so its AA/grayscale overlay is
+          // rebuilt on top of the reinforced B/W baseline.
+          renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+        } else {
+          renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+        }
       }
-      // HALF_REFRESH sends the current 1-bit framebuffer and clears ghosting,
-      // but it does not rebuild the reader's later grayscale/AA passes. Ask
-      // only an actually visible reader to run its normal render pipeline
-      // once more. Menus and the file browser keep their old one-pass action.
       if (repaintReaderGrayscale) {
         activityManager.requestUpdate();
       }
