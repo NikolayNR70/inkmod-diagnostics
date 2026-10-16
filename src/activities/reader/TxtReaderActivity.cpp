@@ -308,6 +308,10 @@ bool TxtReaderActivity::handleShortcutAction(const uint8_t rawAction) {
         onGoHome();
       }
       return true;
+    case InkMODSettings::SHORT_PWRBTN::REINFORCE_SCREEN:
+      ReaderUtils::forceBwReinforcement(pagesUntilFullRefresh);
+      requestUpdate();
+      return true;
     case InkMODSettings::SHORT_PWRBTN::FILE_TRANSFER:
       activityManager.goToFileTransfer(txt ? txt->getPath() : "");
       return true;
@@ -351,6 +355,10 @@ bool TxtReaderActivity::executePowerButtonAction() {
         return true;
       case InkMODSettings::SHORT_PWRBTN::FILE_BROWSER:
         activityManager.goToFileBrowser(txt ? txt->getPath() : "");
+        return true;
+      case InkMODSettings::SHORT_PWRBTN::REINFORCE_SCREEN:
+        ReaderUtils::forceBwReinforcement(pagesUntilFullRefresh);
+        requestUpdate();
         return true;
       default:
         return false;
