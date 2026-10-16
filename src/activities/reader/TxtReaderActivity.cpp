@@ -642,12 +642,9 @@ void TxtReaderActivity::renderPage() {
 
   const bool needsTextGrayscale = SETTINGS.textAntiAliasing && ReaderUtils::readerForegroundBlack();
   if (needsTextGrayscale) {
-    if (ReaderUtils::x3DoubleNoFlashEnabled()) {
-      ReaderUtils::displayX3DoubleNoFlash(renderer, true);
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
-    } else if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
       if (ReaderUtils::shouldUseNoFlashReinforcement(pagesUntilFullRefresh)) {
-        renderer.displayGrayscaleBaseIntermediate(HalDisplay::FAST_REFRESH);
+        ReaderUtils::displayX3DoubleNoFlash(renderer, true);
       } else {
         renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
         renderer.preconditionGrayscale();
