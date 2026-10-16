@@ -52,6 +52,12 @@ class HalDisplay {
   void copyGrayscaleMsbBuffers(const uint8_t* msbBuffer);
   void cleanupGrayscaleBuffers(const uint8_t* bwBuffer);
 
+  // Display the current framebuffer using the controller-specific grayscale
+  // base / reinforcement path. X3 uses the OEM AA-pre-BW(mid) waveform;
+  // other panels fall back to the requested normal refresh mode.
+  void displayGrayscaleBase(RefreshMode fallback = HALF_REFRESH, bool turnOffScreen = false);
+  void preconditionGrayscale();
+
   void displayGrayBuffer(bool turnOffScreen = false, bool factoryMode = false);
 
   // Global output polarity (CrossPoint X4 Pro control-center night mode).
