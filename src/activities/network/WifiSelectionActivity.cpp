@@ -65,8 +65,12 @@ void armWifiHangWatchdog() {
     const esp_err_t createErr = esp_timer_create(&args, &sWifiHangWatchdog);
     BootLog::stepf("WIFI", "wifi hang watchdog: esp_timer_create err=%d", static_cast<int>(createErr));
   }
+  // Recovery retries need a fresh watchdog window. Stop a previous
+  // one-shot timer first; esp_timer_start_once() on an already-active timer
+  // returns ESP_ERR_INVALID_STATE and leaves the old deadline unchanged.
+  esp_timer_stop(sWifiHangWatchdog);
   const esp_err_t startErr = esp_timer_start_once(sWifiHangWatchdog, 20000000ULL);  // 20s: covers setup + CONNECTION_TIMEOUT_MS(15s)
-  BootLog::stepf("WIFI", "wifi hang watchdog: armed (esp_timer_start_once err=%d)", static_cast<int>(startErr));
+  BootLog::stepf("WIFI", "wifi hang watchdog: armed/rearmed (esp_timer_start_once err=%d)", static_cast<int>(startErr));
 }
 
 void disarmWifiHangWatchdog() {
@@ -719,6 +723,21 @@ void WifiSelectionActivity::checkConnectionStatus() {
   }
 
   if (wifiStatusIsConnectionFailure(status)) {
+    // Auto-connect is only a convenience. If the last network is no longer
+    // available, immediately fall back to scanning instead of retrying the
+    // stale SSID (and previously hitting the WiFi watchdog/reboot path).
+    if (autoConnecting) {
+      LOG_INF("WIFI", "Auto-connect failed for ssid=%s; falling back to network scan", selectedSSID.c_str());
+#ifndef SIMULATOR
+      disarmWifiHangWatchdog();
+      sConnectionAttemptLoggingActive = false;
+#endif
+      WiFi.disconnect(false);
+      autoConnecting = false;
+      x4ProRecoveryRetryCount = 0;
+      startWifiScan();
+      return;
+    }
     // ESP32-S3/X4 Pro occasionally leaves the station supplicant in a stale
     // state after an AUTH_EXPIRE/AUTH_FAIL/NO_AP_FOUND transition.  One soft
     // reconnect with the exact same credentials is enough to recover in the
@@ -753,6 +772,9 @@ void WifiSelectionActivity::checkConnectionStatus() {
         retryStatus = WiFi.begin(selectedSSID.c_str());
       LOG_INF("WIFI", "X4 Pro soft recovery WiFi.begin returned status=%d/%s", static_cast<int>(retryStatus),
               wifiStatusName(retryStatus));
+#ifndef SIMULATOR
+      armWifiHangWatchdog();
+#endif
       return;
     }
     connectionError = tr(STR_ERROR_GENERAL_FAILURE);
@@ -778,6 +800,18 @@ void WifiSelectionActivity::checkConnectionStatus() {
 
   // Check for timeout
   if (millis() - connectionStartTime > CONNECTION_TIMEOUT_MS) {
+    if (autoConnecting) {
+      LOG_INF("WIFI", "Auto-connect timed out for ssid=%s; falling back to network scan", selectedSSID.c_str());
+#ifndef SIMULATOR
+      disarmWifiHangWatchdog();
+      sConnectionAttemptLoggingActive = false;
+#endif
+      WiFi.disconnect(false);
+      autoConnecting = false;
+      x4ProRecoveryRetryCount = 0;
+      startWifiScan();
+      return;
+    }
     if (BoardConfig::isX4Pro() && x4ProRecoveryRetryCount == 0) {
       ++x4ProRecoveryRetryCount;
       LOG_INF("WIFI", "X4 Pro soft recovery retry after connection timeout");
@@ -800,6 +834,9 @@ void WifiSelectionActivity::checkConnectionStatus() {
         retryStatus = WiFi.begin(selectedSSID.c_str());
       LOG_INF("WIFI", "X4 Pro soft recovery WiFi.begin returned status=%d/%s", static_cast<int>(retryStatus),
               wifiStatusName(retryStatus));
+#ifndef SIMULATOR
+      armWifiHangWatchdog();
+#endif
       return;
     }
     WiFi.disconnect();
