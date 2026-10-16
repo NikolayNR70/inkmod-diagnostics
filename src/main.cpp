@@ -552,7 +552,11 @@ bool handleGlobalShortcutAction(const InkMODSettings::SHORT_PWRBTN action) {
       const bool repaintReaderGrayscale = activityManager.isCurrentReaderActivity();
       {
         RenderLock lock;
-        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+        if (gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT) {
+          renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
+        } else {
+          renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+        }
       }
       // HALF_REFRESH sends the current 1-bit framebuffer and clears ghosting,
       // but it does not rebuild the reader's later grayscale/AA passes. Ask
