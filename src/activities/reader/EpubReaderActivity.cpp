@@ -3090,11 +3090,7 @@ void EpubReaderActivity::executeReaderQuickAction(InkMODSettings::LONG_PRESS_MEN
     case InkMODSettings::LONG_MENU_REFRESH_SCREEN:
       // Clean ghosting immediately, then repaint through the normal reader path
       // so grayscale/anti-aliasing is applied again after the forced refresh.
-      if (gpio.deviceIsX3() && SETTINGS.refreshAction == InkMODSettings::REFRESH_ACTION_BW_REINFORCEMENT) {
-        renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
-      } else {
-        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-      }
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
       pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
       requestUpdate();
       break;
