@@ -4794,12 +4794,25 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
       const uint32_t imageFinalDisplayMs = millis() - tImageFinalDisplay;
       logImagePageProfile(imageBlankDisplayMs, imageRestoreRenderMs, imageFinalDisplayMs);
     } else {
-      renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
-      renderer.preconditionGrayscale();
+      if (ReaderUtils::x3DoubleNoFlashEnabled()) {
+        ReaderUtils::displayX3DoubleNoFlash(renderer, true);
+      } else {
+        renderer.displayBufferIntermediate(HalDisplay::HALF_REFRESH);
+        renderer.preconditionGrayscale();
+      }
     }
-    ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
+    if (ReaderUtils::x3DoubleNoFlashEnabled()) {
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else {
+      ReaderUtils::forceFullRefresh(pagesUntilFullRefresh);
+    }
   } else if (needsAnyGrayscale) {
-    if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
+    if (ReaderUtils::x3DoubleNoFlashEnabled()) {
+      // AA/grayscale follows, so both reinforcement passes must keep panel
+      // power alive. The gray overlay is the final physical pass.
+      ReaderUtils::displayX3DoubleNoFlash(renderer, true);
+      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+    } else if (ReaderUtils::isRefreshActionDue(pagesUntilFullRefresh)) {
       const bool textOnlyNoFlashReinforcement =
           needsTextGrayscale && !needsImageGrayscale &&
           ReaderUtils::shouldUseNoFlashReinforcement(pagesUntilFullRefresh);
