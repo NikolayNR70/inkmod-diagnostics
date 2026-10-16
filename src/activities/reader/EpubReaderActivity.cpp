@@ -586,6 +586,16 @@ ReaderViewportLayout computeReaderViewportLayout(GfxRenderer& renderer, const bo
                                  topStatusBarReservedHeight + ReaderUtils::STATUS_BAR_TEXT_PADDING);
   } else {
     layout.marginTop += SETTINGS.screenMargin;
+
+    // X3's panel-safe inset is asymmetric: portrait top is 9 px while the
+    // side insets are only 3 px. In the reader this stacks with screenMargin
+    // and the font's own top bearing, making the visible top whitespace much
+    // larger than the left/right margin. Use the same 3 px physical inset as
+    // the sides for book text only; other UI keeps the full hardware-safe
+    // margin. This effectively moves the first text line up by 6 px.
+    if (gpio.deviceIsX3() && SETTINGS.orientation == InkMODSettings::ORIENTATION::PORTRAIT) {
+      layout.marginTop = std::max(0, layout.marginTop - 6);
+    }
   }
 
   if (automaticPageTurnActive &&
