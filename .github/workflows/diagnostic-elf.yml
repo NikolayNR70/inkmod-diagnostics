@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: alpzoloto-sudo/inkmod
-          ref: f25de45512735354e17c60e62d73691f233f32a3
+          ref: 2ab6c33ae5c9b6d1c77283f087e748274efaaa97
           submodules: recursive
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -25,6 +25,8 @@ jobs:
           set -o pipefail
           python -m pip install platformio==6.1.18
           pip install -r requirements.txt
+          sed -i -E 's/^version = .*/version = 1.1.9/' platformio.ini
+          sed -i -E 's/^inkmod_version = .*/inkmod_version = 1.1.9/' platformio.ini
           git rev-parse HEAD > provenance.txt
           pio run -e x4pro-release 2>&1 | tee build.log
           pip freeze >> provenance.txt
