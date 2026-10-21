@@ -23,7 +23,7 @@ jobs:
           INKMOD_RELEASE_VERSION: 1.1.9
         run: |
           set -o pipefail
-          python -m pip install platformio==6.1.18
+          python -m pip install platformio==6.2.0
           pip install -r requirements.txt
           sed -i -E 's/^version = .*/version = 1.1.9/' platformio.ini
           sed -i -E 's/^inkmod_version = .*/inkmod_version = 1.1.9/' platformio.ini
