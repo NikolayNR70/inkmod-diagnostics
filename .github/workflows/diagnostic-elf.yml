@@ -1,0 +1,46 @@
+name: Isolated v1.1.9 ELF build
+on:
+  push:
+    branches: [diagnostics/v1.1.9-x4pro-20261021]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: alpzoloto-sudo/inkmod
+          ref: f25de45512735354e17c60e62d73691f233f32a3
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build original release configuration
+        env:
+          INKMOD_RELEASE_VERSION: 1.1.9
+        run: |
+          set -o pipefail
+          python -m pip install platformio==6.1.18
+          pip install -r requirements.txt
+          git rev-parse HEAD > provenance.txt
+          pio run -e x4pro-release 2>&1 | tee build.log
+          pip freeze >> provenance.txt
+          pio pkg list -e x4pro-release >> provenance.txt
+          sha256sum .pio/build/x4pro-release/firmware.elf .pio/build/x4pro-release/firmware.bin >> provenance.txt
+          ADDR=$(find ~/.platformio -name xtensa-esp32s3-elf-addr2line -type f | head -1)
+          "$ADDR" -pfiaC -e .pio/build/x4pro-release/firmware.elf 0x420452fc 0x420452f9 0x4204644d 0x420465cd 0x420468d7 0x42046bb3 0x42046cad 0x4211b39b 0x420c2215 0x420bd196 0x420be534 0x42126234 0x42126967 0x42142ffe 0x4037fc01 > candidate-decode.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inkmod-v1.1.9-x4pro-release-diagnostics
+          path: |
+            .pio/build/x4pro-release/*.elf
+            .pio/build/x4pro-release/*.map
+            .pio/build/x4pro-release/*.bin
+            build.log
+            provenance.txt
+            candidate-decode.txt
+          retention-days: 30
